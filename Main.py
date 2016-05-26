@@ -1,4 +1,5 @@
 import copy
+import math
 Sudoku = [
 [0,0,0,0,0,0,0,0,0],#0
 [0,0,0,0,0,0,0,0,0],#1
@@ -39,23 +40,22 @@ def initSudoku(Matrix):
             j = -1
         j += 1
 def CalcuValiData():
-    global ValidData,Sudoku
+    global ValidData,Sudoku,ZeroPos
     i,j = 0,0
     while i != 9 or j!= 0:
         if Sudoku[i][j] == 0:
-            Columns = range(1,10)
-            Rows = range(1,10)
-            Block = range(1,10)
-            CheckColum = range(0,9)
+            ZeroPos.append((i,j))
+            ThisValidData = 0b001111111110
+            CheckColum = [0,1,2,3,4,5,6,7,8]
             CheckColum.remove(j)
-            CheckRow = range(0,9)
+            CheckRow = [0,1,2,3,4,5,6,7,8]
             CheckRow.remove(i)
             for cj in CheckColum:
                 if Sudoku[i][cj] != 0:
-                    Columns.remove(Sudoku[i][cj])
+                    ThisValidData = ThisValidData & ~(1 << Sudoku[i][cj])
             for ci in CheckRow:
                 if Sudoku[ci][j] != 0:
-                    Rows.remove(Sudoku[ci][j])
+                    ThisValidData = ThisValidData & ~(1 << Sudoku[ci][j])
             #Block;
             if i%3 == 0:
                 CheckBlockx = [+1,+2]
@@ -72,38 +72,39 @@ def CalcuValiData():
             for xi in CheckBlockx:
                 for yi in CheckBlocky:
                     if Sudoku[i+xi][j+yi] != 0:
-                        Block.remove(Sudoku[i+xi][j+yi])
-            ValidData[(i,j)] = list(set(Columns).intersection(set(Rows)).intersection(set(Block)))
+                        ThisValidData = ThisValidData & ~(1 << Sudoku[i+xi][j+yi])
+            ValidData[(i,j)] = ThisValidData
                         #print i,j,Columns,Rows,Block
         j += 1
         if j == 9:
             i += 1
             j = 0
-def GetZeroPos():
-    i,j = 0,0
-    for i in range(0,9):
-        for j in range(0,9):
-            if Sudoku[i][j] == 0:ZeroPos.append((i,j))
+#def GetZeroPos():
+#    i,j = 0,0
+#    for i in range(0,9):
+#        for j in range(0,9):
+#            if Sudoku[i][j] == 0:ZeroPos.append((i,j))
 
 def Cut(pos,i):
+    ispow2 = lambda x:x == 2**int(math.log(x)/math.log(2))#take too much time
     x,y = pos
     lx,ly = range(0,9),range(0,9)
     lx.remove(x)
     ly.remove(y)
     for cy in ly:
         if Sudoku[x][cy] == 0:
-            if i in ValidData[(x,cy)]:
-                if len(ValidData[(x,cy)]) == 1:
+            if 1 << i & ValidData[(x,cy)] != 0:
+                if ispow2(ValidData[(x,cy)]):
                     return False
                 else:
-                    ValidData[(x,cy)].remove(i)
+                    ValidData[(x,cy)] &= ~(1 << i)
     for cx in lx:
         if Sudoku[cx][y] == 0:
-            if i in ValidData[(cx,y)]:
-                if len(ValidData[(cx,y)]) == 1:
+            if 1 << i & ValidData[(cx,y)] != 0:
+                if ispow2(ValidData[(cx,y)]):
                     return False
                 else:
-                    ValidData[(cx,y)].remove(i)
+                    ValidData[(cx,y)] &= ~(1 << i)
     if x%3 == 0:
         CheckBlockx = [+1,+2]
     elif x%3 == 1:
@@ -119,32 +120,48 @@ def Cut(pos,i):
     for xi in CheckBlockx:
         for yi in CheckBlocky:
             if Sudoku[x+xi][y+yi] == 0:
-                if i in ValidData[(x+xi,y+yi)]:
-                   if len(ValidData[(x+xi,y+yi)]) == 1:
+                if 1 << i & ValidData[(x+xi,y+yi)] != 0:
+                   if ispow2(ValidData[(x+xi,y+yi)]):
                        return False
                    else:
-                        ValidData[(x+xi,y+yi)].remove(i)
+                        ValidData[(x+xi,y+yi)] &= ~(1 << i)
+    
     return True
 def CalcuSolved(n):
     global ValidData,Sudoku,Solved
-    if n == len(ZeroPos) - 1:
-        Solved = copy.deepcopy(Sudoku)
+
+    if n == len(ZeroPos):
+        Solved .append( copy.deepcopy(Sudoku))
         return
     else:
-        ValidDataList = copy.copy(ValidData[ZeroPos[n]])
-        for i in ValidDataList:
+        ThisValidData = ValidData[ZeroPos[n]]
+        shift = 1
+        while shift != 10:
+            if ((ThisValidData >> shift & 1) == 0):
+                shift += 1
+                continue
+            i = shift
             Sudoku[ZeroPos[n][0]][ZeroPos[n][1]] = i
-            TmpValidData = copy.deepcopy(ValidData)
+            TmpValidData = copy.copy(ValidData)
             if Cut(ZeroPos[n],i):
-               CalcuSolved(n + 1)
+                CalcuSolved(n + 1)
             Sudoku[ZeroPos[n][0]][ZeroPos[n][1]] = 0
-            ValidData = copy.deepcopy(TmpValidData)
+            ValidData = copy.copy(TmpValidData)
+            shift += 1
         #return Sudoku
 initSudoku(Test)
 CalcuValiData()
-GetZeroPos()
+
 CalcuSolved(0)
-for i in range(0,9):
-    for j in range(0,9):
-        print Solved[i][j],
-    print 
+print "there is {0} solve(s) total ,show like this:".format(len(Solved))
+for solve in Solved:
+    for i in range(len(solve)):
+        for j in range(len(solve[i])):
+            print solve[i][j],
+        print 
+    print "-"*48
+#key = ValidData.keys()
+#key.sort()
+#print len(key)
+#for i in key:
+#    print i,bin(ValidData[i])[2:].zfill(10)
