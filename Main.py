@@ -86,7 +86,7 @@ def CalcuValiData():
 #            if Sudoku[i][j] == 0:ZeroPos.append((i,j))
 
 def Cut(pos,i):
-    ispow2 = lambda x:x == 2**int(math.log(x)/math.log(2))#take too much time
+    ispow2 = lambda x:not (x & x - 1)
     x,y = pos
     lx,ly = range(0,9),range(0,9)
     lx.remove(x)
